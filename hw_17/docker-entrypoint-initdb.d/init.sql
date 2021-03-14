@@ -1,0 +1,103 @@
+-- создаем БД изначальную как в CSV
+CREATE TABLE customer (
+  id SERIAL PRIMARY KEY,
+  title VARCHAR(50),
+  first_name VARCHAR(50),
+  last_name VARCHAR(50),
+  correspondence_language VARCHAR(2),
+  birth_date DATE,
+  gender VARCHAR(20),
+  marital_status VARCHAR(20),
+  country VARCHAR(2),
+  postal_code VARCHAR(20),
+  region VARCHAR(50),
+  city VARCHAR(100),
+  street VARCHAR(500),
+  building_number VARCHAR(50)
+);
+
+-- копируем из CSV в нашу БД
+COPY customer(
+  -- информация о человеке
+  title,
+  first_name,
+  last_name,
+  correspondence_language,
+  birth_date,
+  gender,
+  marital_status,
+  -- информация о его расположении
+  country,
+  postal_code,
+  region,
+  city,
+  street,
+  building_number
+)
+FROM '/docker-entrypoint-initdb.d/data.csv'
+DELIMITER ','
+CSV HEADER;
+
+-- Из написанного скрипта analyze.py узнаем какие поля лучше сделать отдельными сущностями, основавыясь на параметрах (делаем нормализацию)
+-- * сколько разных значений для этого поля по сравнению с общим числом записей
+-- * сколько разных значений (словарь values в analyze.json для каждого поля) и их распределение
+-- * используем знание о таких сущностях как страны, улицы, и т.д. понимаем, что для небольшой БД можно их пока оставить как есть и не делать как в БД ФИАС
+-- Создаем для них таблицы и загружаем в них уникальные значения:
+CREATE TABLE title (
+  id SERIAL PRIMARY KEY,
+  value VARCHAR(50)
+);
+INSERT INTO title(value) SELECT DISTINCT customer.title FROM customer;
+
+CREATE TABLE correspondence_language (
+  id SERIAL PRIMARY KEY,
+  value VARCHAR(2)
+);
+INSERT INTO correspondence_language(value) SELECT DISTINCT customer.correspondence_language FROM customer;
+
+CREATE TABLE gender (
+  id SERIAL PRIMARY KEY,
+  value VARCHAR(20)
+);
+INSERT INTO gender(value) SELECT DISTINCT customer.gender FROM customer;
+
+CREATE TABLE marital_status (
+  id SERIAL PRIMARY KEY,
+  value VARCHAR(20)
+);
+INSERT INTO marital_status(value) SELECT DISTINCT customer.marital_status FROM customer;
+
+CREATE TABLE country (
+  id SERIAL PRIMARY KEY,
+  value VARCHAR(2)
+);
+INSERT INTO country(value) SELECT DISTINCT customer.country FROM customer;
+
+-- Делаем декомпозицию. Сначало разобьем все на две сущности person и address и заполним их данными:
+-- Начнем с адресов (маловероятно что будет по 100-500 person в одном месте, если только у нас не всемирная перепись, но тогда нужно и адрес рефакторить - нормализовать)
+CREATE TABLE address (
+  id SERIAL PRIMARY KEY,
+  --country_id INT,
+  postal_code VARCHAR(20),
+  region VARCHAR(50),
+  city VARCHAR(100),
+  street VARCHAR(500),
+  building_number VARCHAR(50)
+);
+
+INSERT INTO address(
+  --country_id,
+  postal_code,
+  region,
+  city,
+  street,
+  building_number
+) SELECT (
+  --(SELECT country.id FROM country WHERE country.value = customer.country),
+  customer.postal_code,
+  customer.region,
+  customer.city,
+  customer.street,
+  customer.building_number
+) FROM customer AS customer;
+

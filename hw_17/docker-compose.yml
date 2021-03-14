@@ -1,0 +1,27 @@
+version: '3.5'
+
+services:
+
+  psql:
+    container_name: psql
+    image: postgres:13.2-alpine
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: example
+    volumes:
+      - pg_volume:/var/lib/postgresql # добавляем volume к папке, где хранится локально вся БД
+      - ./docker-entrypoint-initdb.d:/docker-entrypoint-initdb.d # добавляем директорию со скриптами для инициализации
+    ports:
+      - 5432:5432
+
+  adminer: # использую adminer, но это необязательно, если расшарить порты от БД PSQL (можно заменить на  dpage/pgadmin4)
+    container_name: adminer
+    image: adminer:4.8.0
+    restart: always
+    ports:
+      - 8080:8080
+
+volumes:
+  pg_volume: {}
+  c3s_volume: {}
