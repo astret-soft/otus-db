@@ -103,7 +103,8 @@ INSERT INTO address (
   city,
   street,
   building_number
-) SELECT
+)
+SELECT
   (SELECT country.id FROM country WHERE country.value = customer.country),
   postal_code,
   region,
@@ -144,7 +145,8 @@ INSERT INTO person (
   birth_date,
   gender_id,
   marital_status_id
-) SELECT
+)
+SELECT
   (SELECT title.id FROM title WHERE title.value = customer.title),
   first_name,
   last_name,
@@ -153,3 +155,6 @@ INSERT INTO person (
   (SELECT gender.id FROM gender WHERE gender.value = customer.gender),
   (SELECT marital_status.id FROM marital_status WHERE marital_status.value = customer.marital_status)
 FROM customer AS customer;
+
+-- Создадим FTS (полнотекстовый поиск) над полями fts_address и fts_person, чтобы поиск можно было проводить из строки по нашим сущностям (address и person):
+TODO
