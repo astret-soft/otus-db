@@ -74,7 +74,7 @@ CREATE TABLE country (
 INSERT INTO country(value) SELECT DISTINCT customer.country FROM customer;
 
 -- Делаем декомпозицию. Сначало разобьем все на две сущности person и address и заполним их данными:
--- Начнем с адресов (маловероятно что будет по 100-500 person в одном месте, если только у нас не всемирная перепись, но тогда нужно и адрес рефакторить - нормализовать)
+-- * Начнем с адресов (маловероятно что будет по 100-500 person в одном месте, если только у нас не всемирная перепись, но тогда нужно и адрес рефакторить - нормализовать):
 CREATE TABLE address (
   id SERIAL PRIMARY KEY,
   country_id INT,
@@ -101,3 +101,32 @@ INSERT INTO address (
   building_number
 FROM customer AS customer;
 
+-- * Делаем декомпозицию с созданием таблицы person, связывая ее с созданной address и другими нормализованными полями:
+CREATE TABLE person (
+  id SERIAL PRIMARY KEY,
+  title_id INT,
+  first_name VARCHAR(50),
+  last_name VARCHAR(50),
+  correspondence_language_id INT,
+  birth_date DATE,
+  gender_id INT,
+  marital_status_id INT
+);
+
+INSERT INTO person (
+  title_id,
+  first_name,
+  last_name,
+  correspondence_language_id,
+  birth_date,
+  gender_id,
+  marital_status_id
+) SELECT
+  (SELECT title.id FROM title WHERE title.value = customer.title),
+  first_name,
+  last_name,
+  (SELECT correspondence_language.id FROM correspondence_language WHERE correspondence_language.value = customer.correspondence_language),
+  birth_date,
+  (SELECT gender.id FROM gender WHERE gender.value = customer.gender),
+  (SELECT marital_status.id FROM marital_status WHERE marital_status.value = customer.marital_status)
+FROM customer AS customer;
