@@ -43,6 +43,8 @@ CSV HEADER;
 -- * сколько разных значений (словарь values в analyze.json для каждого поля) и их распределение
 -- * используем знание о таких сущностях как страны, улицы, и т.д. понимаем, что для небольшой БД можно их пока оставить как есть и не делать как в БД ФИАС
 -- Создаем для них таблицы и загружаем в них уникальные значения:
+-- ЗАМЕЧАНИЯ: скрипт необязателен, можно было импортировать CSV через pgAdmin или создавай временную таблицу с минимальными ограничениями на поля а далее
+--            делать запросы в бд через SQL типа SELECT MAX(LEN(customer.поле)) FROM customer; и таким образом выбирая необходимые ограничения на модель.
 CREATE TABLE title (
   id SERIAL PRIMARY KEY,
   value VARCHAR(50)
@@ -75,10 +77,18 @@ INSERT INTO country(value) SELECT DISTINCT customer.country FROM customer;
 
 -- Делаем декомпозицию. Сначало разобьем все на две сущности person и address и заполним их данными:
 -- * Начнем с адресов (маловероятно что будет по 100-500 person в одном месте, если только у нас не всемирная перепись,
---   но тогда нужно и адрес рефакторить - нормализовать все поля):
+--   но тогда нужно и адрес рефакторить - нормализовать все поля);
+-- * При рефакторинге создаем foreignkey и индексы на поля, где это надо:
+--   (или ставим их на будущее, если видим, что кардинальность будет распологать в скором будущем в планах БД при поиске к индексу, а не перебором:
+--    в будущем это сэкономит время на создание индексов по этим полям, но если на данном этапе будет допущена ошибка, то БД будет отрабатывать
+--    запросы медленне из-за неиспользуемых индексов (чтобы исключить это необходимо просматривать статистику и анализ
+--    часто используемых запросов, чтобы оптимизировать БД на данный момент)):
 CREATE TABLE address (
   id SERIAL PRIMARY KEY,
   country_id INT,
+  CONSTRAINT fk_country
+    FOREIGN KEY(country_id)
+    REFERENCES country(id),
   postal_code VARCHAR(20),
   region VARCHAR(50),
   city VARCHAR(100),
@@ -106,12 +116,24 @@ FROM customer AS customer;
 CREATE TABLE person (
   id SERIAL PRIMARY KEY,
   title_id INT,
+  CONSTRAINT fk_title
+    FOREIGN KEY(title_id)
+    REFERENCES title(id),
   first_name VARCHAR(50),
   last_name VARCHAR(50),
   correspondence_language_id INT,
+  CONSTRAINT fk_correspondence_language
+    FOREIGN KEY(correspondence_language_id)
+    REFERENCES correspondence_language(id),
   birth_date DATE,
   gender_id INT,
-  marital_status_id INT
+  CONSTRAINT fk_gender
+    FOREIGN KEY(gender_id)
+    REFERENCES gender(id),
+  marital_status_id INT,
+  CONSTRAINT fk_marital_status
+    FOREIGN KEY(marital_status_id)
+    REFERENCES marital_status(id)
 );
 
 INSERT INTO person (
@@ -131,9 +153,3 @@ INSERT INTO person (
   (SELECT gender.id FROM gender WHERE gender.value = customer.gender),
   (SELECT marital_status.id FROM marital_status WHERE marital_status.value = customer.marital_status)
 FROM customer AS customer;
-
--- Рефакторинг закончили, теперь создаем foreignkey и индексы на поля, где это надо
--- (или ставим их на будущее, если видим, что кардинальность будет распологать в скором будущем в планах БД при поиске к индексу, а не перебором:
--- в будущем это сэкономит время на создание индексов по этим полям, но если на данном этапе будет допущена ошибка, то БД будет отрабатывать
--- запросы медленне из-за неиспользуемых индексов(чтобы исключить это необходимо просматривать статистику и анализ
--- часто используемых запросов, чтобы оптимизировать БД на данный момент))
