@@ -77,7 +77,7 @@ INSERT INTO country(value) SELECT DISTINCT customer.country FROM customer;
 -- Начнем с адресов (маловероятно что будет по 100-500 person в одном месте, если только у нас не всемирная перепись, но тогда нужно и адрес рефакторить - нормализовать)
 CREATE TABLE address (
   id SERIAL PRIMARY KEY,
-  --country_id INT,
+  country_id INT,
   postal_code VARCHAR(20),
   region VARCHAR(50),
   city VARCHAR(100),
@@ -85,19 +85,19 @@ CREATE TABLE address (
   building_number VARCHAR(50)
 );
 
-INSERT INTO address(
-  --country_id,
+INSERT INTO address (
+  country_id,
   postal_code,
   region,
   city,
   street,
   building_number
-) SELECT (
-  --(SELECT country.id FROM country WHERE country.value = customer.country),
-  customer.postal_code,
-  customer.region,
-  customer.city,
-  customer.street,
-  customer.building_number
-) FROM customer AS customer;
+) SELECT
+  (SELECT country.id FROM country WHERE country.value = customer.country),
+  postal_code,
+  region,
+  city,
+  street,
+  building_number
+FROM customer AS customer;
 
