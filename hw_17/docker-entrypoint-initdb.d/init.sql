@@ -61,6 +61,7 @@ WITH
 -- Создаем для них таблицы и загружаем в них уникальные значения:
 -- ЗАМЕЧАНИЯ: скрипт необязателен, можно было импортировать CSV через pgAdmin или создавай временную таблицу с минимальными ограничениями на поля а далее
 --            делать запросы в бд через SQL типа SELECT MAX(LEN(customer.поле)) FROM customer; или SELECT DISTINCT title FROM customer; и таким образом выбирая
+--            делать запросы в бд через SQL типа SELECT MAX(LEN(customer.поле)) FROM customer; или SELECT DISTINCT title FROM customer; и таким образом выбирая
 --            необходимые ограничения на модель с запасом на будущее.
 CREATE TABLE title (
   id SERIAL PRIMARY KEY NOT NULL,
@@ -171,9 +172,9 @@ INSERT INTO normalized_customers (
 )
 SELECT
   -- поля, который мы не выделяем в отдельные сущности при нормализацию
-  normalized_customers.first_name,
-  normalized_customers.last_name,
-  normalized_customers.birth_date,
+  customer.first_name,
+  customer.last_name,
+  customer.birth_date,
   -- информация о человеке с сылками на сущности
   (SELECT title.id FROM title WHERE title.value = customer.title),
   (SELECT correspondence_language.id FROM correspondence_language WHERE correspondence_language.value = customer.correspondence_language),
@@ -186,11 +187,13 @@ SELECT
   (SELECT city.id FROM city WHERE city.value = customer.city),
   (SELECT street.id FROM street WHERE street.value = customer.street),
   (SELECT building_number.id FROM building_number WHERE building_number.value = customer.building_number)
-FROM normalized_customers, customer;
+FROM customer;
+
+-- TODO:!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!1
 
 DROP TABLE customer;
 
--- Создаем сущность address на основе таблицы normalized_customers и заполняем ее
+-- Создаем сущность address на основе таблицы normalized_customers
 CREATE TABLE address (
   id SERIAL PRIMARY KEY NOT NULL,
   country_id INT,
@@ -219,24 +222,7 @@ CREATE TABLE address (
     REFERENCES building_number(id)
 );
 
-INSERT INTO address (
-  country_id,
-  postal_code_id,
-  region_id,
-  city_id,
-  street_id,
-  building_number_id
-)
-SELECT
-  country_id,
-  postal_code_id,
-  region_id,
-  city_id,
-  street_id,
-  building_number_id
-FROM normalized_customers;
-
--- * Также для сущности person, связывая ее с созданной address и другими нормализованными ранее полями:
+-- * Также для сущности person:
 CREATE TABLE person (
   id SERIAL PRIMARY KEY,
   title_id INT,
@@ -260,6 +246,36 @@ CREATE TABLE person (
     REFERENCES marital_status(id)
 );
 
+-- * Создаем many-to-many между адрессом и клиентом (если все же one-to-many, то person_id нужно добавить ограничение на уникальность: UNIQUE):
+CREATE TABLE customer_to_address (
+  person_id INT,
+  CONSTRAINT fk_to_person
+    FOREIGN KEY(person_id)
+    REFERENCES person(id),
+  address_id INT,
+  CONSTRAINT fk_to_address
+    FOREIGN KEY(address_id)
+    REFERENCES address(id)
+);
+
+-- Заполняем таблицы person и address, связывая ее отношением many-to-many:
+INSERT INTO address (
+  country_id,
+  postal_code_id,
+  region_id,
+  city_id,
+  street_id,
+  building_number_id
+)
+SELECT DISTINCT
+  country_id,
+  postal_code_id,
+  region_id,
+  city_id,
+  street_id,
+  building_number_id
+FROM normalized_customers;
+
 INSERT INTO person (
   title_id,
   first_name,
@@ -279,23 +295,33 @@ SELECT DISTINCT
   marital_status_id
 FROM normalized_customers;
 
-
--- Создаем one-to-many между адрессом и клиентом (если все же one-to-many, то person_id нужно добавить ограничение на уникальность UNIQUE):
-CREATE TABLE customer_to_address (
-  person_id INT,
-  CONSTRAINT fk_to_person
-    FOREIGN KEY(person_id)
-    REFERENCES person(id),
-  address_id INT,
-  CONSTRAINT fk_to_address
-    FOREIGN KEY(address_id)
-    REFERENCES address(id)
-);
+SELECT COUNT(*) FROM normalized_customers;
+SELECT COUNT(*) FROM person;
+SELECT COUNT(*) FROM address;
 
 INSERT INTO customer_to_address (
-  ...
+  person_id,
+  address_id
 )
 SELECT
-  person.id,
-  customer.id
+  (
+    SELECT person.id FROM person
+      WHERE
+        normalized_customers.first_name = person.first_name AND
+        normalized_customers.last_name = person.last_name AND
+        normalized_customers.birth_date = person.birth_date AND
+        normalized_customers.correspondence_language_id = person.correspondence_language_id AND
+        normalized_customers.gender_id = person.gender_id AND
+        normalized_customers.marital_status_id = person.marital_status_id
+  ),
+  (
+    SELECT address.id FROM address
+      WHERE
+        normalized_customers.country_id = address.country_id AND
+        normalized_customers.postal_code_id = address.postal_code_id AND
+        normalized_customers.region_id = address.region_id AND
+        normalized_customers.city_id = address.city_id AND
+        normalized_customers.street_id = address.street_id AND
+        normalized_customers.building_number_id = address.building_number_id
+  )
 FROM normalized_customers;
