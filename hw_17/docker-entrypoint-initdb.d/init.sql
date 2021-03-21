@@ -153,7 +153,7 @@ CREATE TEMP TABLE normalized_customers (
 );
 
 INSERT INTO normalized_customers (
-  -- поля, который мы не выделяем в отдельные сущности при нормализацию
+  -- поля, который мы не выделяем в отдельные сущности при нормализации
   first_name,
   last_name,
   birth_date,
@@ -171,7 +171,7 @@ INSERT INTO normalized_customers (
   building_number_id
 )
 SELECT
-  -- поля, который мы не выделяем в отдельные сущности при нормализацию
+  -- поля, который мы не выделяем в отдельные сущности при нормализации
   customer.first_name,
   customer.last_name,
   customer.birth_date,
@@ -188,8 +188,6 @@ SELECT
   (SELECT street.id FROM street WHERE street.value = customer.street),
   (SELECT building_number.id FROM building_number WHERE building_number.value = customer.building_number)
 FROM customer;
-
--- TODO:!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!1
 
 DROP TABLE customer;
 
@@ -295,10 +293,6 @@ SELECT DISTINCT
   marital_status_id
 FROM normalized_customers;
 
-SELECT COUNT(*) FROM normalized_customers;
-SELECT COUNT(*) FROM person;
-SELECT COUNT(*) FROM address;
-
 INSERT INTO customer_to_address (
   person_id,
   address_id
@@ -325,3 +319,5 @@ SELECT
         normalized_customers.building_number_id = address.building_number_id
   )
 FROM normalized_customers;
+
+-- Создем индексы над сущностями:
