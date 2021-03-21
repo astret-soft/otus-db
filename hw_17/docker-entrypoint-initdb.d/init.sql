@@ -303,7 +303,7 @@ SELECT
       WHERE
         normalized_customers.first_name = person.first_name AND
         normalized_customers.last_name = person.last_name AND
-        normalized_customers.birth_date = person.birth_date AND
+        (normalized_customers.birth_date = person.birth_date OR (normalized_customers.birth_date IS NULL AND person.birth_date IS NULL)) AND -- NULL != NULL
         normalized_customers.correspondence_language_id = person.correspondence_language_id AND
         normalized_customers.gender_id = person.gender_id AND
         normalized_customers.marital_status_id = person.marital_status_id
