@@ -2,8 +2,8 @@ version: '3.5'
 
 services:
 
-  psql:
-    container_name: psql
+  postgresql:
+    container_name: postgresql
     image: postgres:13.2-alpine
     restart: always
     environment:
@@ -21,6 +21,23 @@ services:
     restart: always
     ports:
       - 8080:8080
+
+  pgbouncer: # pgbouncer с TLS. Генерация ключей в папке certs: openssl req -new -newkey rsa:4096 -x509 -sha512 -days 365 -nodes -out MyCertificate.crt -keyout MyKey.key
+    image: edoburu/pgbouncer
+    environment:
+      - DB_NAME=postgresql
+      - DB_HOST=postgresql
+      - DB_PASSWORD=s3cret
+      - CLIENT_TLS_SSLMODE=require
+      - CLIENT_TLS_CERT_FILE=/etc/pgbouncer/certs/MyCertificate.crt
+      - CLIENT_TLS_CA_FILE=/etc/pgbouncer/certs/MyCertificate.crt
+      - CLIENT_TLS_KEY_FILE=/etc/pgbouncer/certs/MyKey.key
+    ports:
+      - 6432:5432
+    depends_on:
+      - postgresql
+    volumes:
+      - ./certs:/etc/pgbouncer/certs
 
 volumes:
   pg_volume: {}
